@@ -9,6 +9,7 @@ make sure you have a recent node (tested on Node 10).
 
 ```
 npm install
+mkdir canope
 ```
 
 ## Running
@@ -17,7 +18,7 @@ npm install
 ### Downloading webpages
 
 ```
-node batcher.js
+node downloader.js
 ```
 
 Will download all webpages into a _./canope_ folder.

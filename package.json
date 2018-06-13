@@ -1,0 +1,16 @@
+{
+  "name": "scrapper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "downloader.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vincent Agnano",
+  "license": "MIT",
+  "dependencies": {
+    "jsdom": "^11.11.0",
+    "request": "^2.87.0",
+    "request-promise": "^4.2.2"
+  }
+}
