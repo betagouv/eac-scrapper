@@ -1,9 +1,10 @@
 const fs = require('fs')
 const { JSDOM } = require('jsdom')
-const batchProcess = require('batch-process')
+const parser = require('papaparse')
 
 const offset = Number(process.argv[2]) || 0
 const limit = 3000
+console.log('offset', offset)
 
 
 function readBody(id, cb) {
@@ -15,15 +16,15 @@ function readBody(id, cb) {
 
 function getResultat(nodes, title) {
   const titleNode = nodes.find(n => n.textContent.trim().startsWith(title))
-  if(!titleNode) return
+  if(!titleNode) return ''
   const result = titleNode.querySelector('.resultat')
-  if(!result) return
+  if(!result) return ''
   return result.textContent.replace(/\s+/g, ' ').trim()
 }
 
 function getSection(nodes, title) {
   const titleNodeIndex = nodes.findIndex(n => n.textContent.trim().startsWith(title))
-  if(!titleNodeIndex) return
+  if(!titleNodeIndex) return ''
   // +2 is the proper `p` (+1 is the `span` inside the title)
   return nodes[titleNodeIndex + 2].textContent.replace(/\s+/g, ' ').trim()
 }
@@ -35,7 +36,7 @@ function extractData(nodes) {
     type: getResultat(nodes, 'Type de structure'),
     address: getResultat(nodes, 'Adresse'),
     postalCode: getResultat(nodes, 'Code Postal'),
-    city: null,
+    city: '',
     phone: getResultat(nodes, 'Téléphone'),
     email: getResultat(nodes, 'Mél :'),
     timetable: getResultat(nodes, 'Horaires'),
@@ -69,21 +70,36 @@ function writeOutput(list) {
   fs.writeFile(`actors-${offset}-${limit}.json`, JSON.stringify(list), console.error.bind(console))
 }
 
+function toJson(pageIndex) {
+  const body = readBody(pageIndex)
+  if(!body) return
+  const nodes = Array.from(body.querySelectorAll('*'))
+  const raw = extractData(nodes)
+  return cleanData(raw)
+}
+
+
 function run() {
-  let count = 0
+  if(offset === 0) {
+    const first = parser.unparse([toJson(1)], {header: true})
+    fs.writeFileSync('actors.csv', first + '\n')
+  }
+  const stream = fs.createWriteStream('actors.csv', {flags:'a'})
   const data = [...Array(limit)].map((_, i) => {
-    const index = i + 1 + offset
-    const body = readBody(index)
-    if(!body) return
-    count++
-    const nodes = Array.from(body.querySelectorAll('*'))
-    const raw = extractData(nodes)
-    console.log('processed', index)
-    return cleanData(raw)
+    try {
+      const index = i + 2 + offset
+      const data = toJson(index)
+      console.log('processing row', i + offset, `${Object.keys(data).length} cols`)
+      if(!data.name) return
+      const csv = parser.unparse([data], {header: false})
+      stream.write(csv + '\n')
+    }
+    catch(e) {
+      stream.end()
+    }
   })
-  const filtered = data.filter(d => d && d.name)
-  console.log(filtered.length, 'objects extracted.', count)
-  writeOutput(filtered)
+  stream.end()
+  console.log(`ended ${data.length} from row ${offset} to row ${offset + limit}`)
 }
 
 run()
